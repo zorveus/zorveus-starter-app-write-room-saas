@@ -1,6 +1,6 @@
 # Write room
 
-A React and TypeScript starter app for AI writing with Zorveus. Rewrite drafts, enforce customer allowances, inspect Activity, and add credits through a simulated checkout.
+A React and TypeScript starter app a SaaS app credits and AI requests handled with Zorveus. Rewrite drafts, enforce customer allowances, inspect Activity, and add credits through a simulated checkout.
 
 The demo includes three accounts: Alex Morgan and Jordan Lee on Plus, and Sam Rivera on Plus Ultra. Each customer has an independent allowance and Activity history. The server selects the direct inference key for their plan.
 
