@@ -3,6 +3,7 @@ import { ZorveusError } from '@zorveus/sdk';
 import type { ServerConfig } from './config.js';
 import type { Billing } from './zorveus.js';
 import type { Customer } from '../src/types.js';
+import { CheckoutError, createDemoCheckout } from './demo-checkout.js';
 
 const customers = {
   a: { account: 'a', name: 'Alex Morgan', plan: 'plus', externalId: 'write-room-demo-a' },
@@ -38,6 +39,7 @@ function upstreamFailure(error: unknown, extra = {}) {
 }
 
 export function createApi(config: ServerConfig, billing: Billing | null, development: boolean) {
+  const checkout = billing ? createDemoCheckout(billing) : null;
   const sessions = new Map<string, { account: Account; expires: number }>();
   const generating = new Set<Account>();
   const cookieName = 'write_room_session';
@@ -74,6 +76,23 @@ export function createApi(config: ServerConfig, billing: Billing | null, develop
     if (!config.ready || !billing) return failure('Finish the server configuration shown in setup, then restart the app.', 'configuration_required', 503);
     // The session selects a trusted plan assignment. Browser identity, key, model, and plan inputs are never used.
     const customer = customers[account];
+    if (request.method === 'POST' && ['/api/demo-checkout', '/api/demo-checkout/confirm'].includes(url.pathname)) {
+      if (!development) return failure('Demo checkout is available only in development.', 'demo_disabled', 403);
+      let body;
+      try { body = await request.json(); } catch { return failure('Choose a credit pack.', 'invalid_checkout', 400); }
+      try {
+        const order = url.pathname === '/api/demo-checkout'
+          ? checkout!.create(customer.externalId, body?.packId)
+          : await checkout!.confirm(customer.externalId, body?.orderId, body?.outcome);
+        return json(order);
+      } catch (error) {
+        if (error instanceof CheckoutError) return failure(error.message, error.code, error.status);
+        const status = error instanceof ZorveusError ? error.status : undefined;
+        return failure(status === 403
+          ? 'The server service key needs product_users:write permission to add credits. Ask the demo owner to update it.'
+          : 'Credits could not be confirmed. Retry this checkout to check the same purchase safely.', 'credit_grant_unconfirmed', status === 403 ? 403 : 502);
+      }
+    }
     if (request.method === 'GET' && url.pathname === '/api/allowance') {
       try { return json(await billing.allowance(customer.externalId, customer.plan)); }
       catch (error) { return upstreamFailure(error); }

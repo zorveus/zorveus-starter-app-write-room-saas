@@ -11,6 +11,7 @@ const balance = { remaining: '0', capAmount: '10', currency: 'USD', period: 'mon
 const page = { items: [], nextCursor: null, hasMore: false };
 function fixture(development = true) {
   const billing = {
+    grantCredits: vi.fn<Billing['grantCredits']>().mockResolvedValue(undefined),
     allowance: vi.fn<Billing['allowance']>().mockResolvedValue(balance),
     activity: vi.fn<Billing['activity']>().mockResolvedValue(page),
     rewrite: vi.fn<Billing['rewrite']>().mockImplementation(async (_id, _text, activityId) => ({ text: 'Clearer text.', activityId, completionId: 'completion_test', finishReason: 'stop' })),

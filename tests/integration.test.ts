@@ -64,7 +64,7 @@ describe('decimal presentation and bundled defaults', () => {
     expect(manifest.keys.plus_ultra).toMatchObject({ name: 'Plus Ultra', creditMode: 'enforce', overrunPolicy: 'limit_output', cap: { amount: '30', currency: 'USD', period: 'monthly' } });
     expect(Object.keys(manifest.keys)).toEqual(['plus', 'plus_ultra']);
     expect(manifest).not.toHaveProperty('routingKeys');
-    expect(manifest.serviceKeys.customers.scopes).toEqual(['product_users:read']);
+    expect(manifest.serviceKeys.customers.scopes).toEqual(['product_users:read', 'product_users:write']);
     expect(manifest.app.allowedModels.some(model => model === '*' || model === config.model)).toBe(true);
     expect(JSON.stringify(manifest)).not.toMatch(/"(?:apiKey|credential)"|zrv_/);
   });

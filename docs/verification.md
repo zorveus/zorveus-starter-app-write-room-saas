@@ -12,7 +12,7 @@ The default model and local `.env` model setting are now `gemini/gemini-3.5-flas
 
 ## Local checks
 
-- All 37 remaining tests pass across route security, SDK transport, decimal formatting, manifest settings, React interactions, accessible disclosures, reduced motion, and organization-funding errors.
+- All 44 tests pass across route security, SDK transport, decimal formatting, manifest settings, React interactions, accessible disclosures, reduced motion, and organization-funding errors.
 - TypeScript checking and the Vite production build pass.
 - The browser-bundle scan finds no server integration code or credential values.
 - Runtime source and npm scripts contain no CLI invocation or OS-store lookup.
@@ -36,3 +36,9 @@ The original live checks used the now-removed CLI launcher. The same applied cre
 Controlled live customer allowance exhaustion was not performed; it requires a separately authorized test policy or spend. Organization funding rejection was observed live and has a regression test.
 
 Earlier Safari review covered the welcome and signed-in setup layouts. The browser automation host was unavailable during the final live check, so configured, successful, and denied browser captures remain unavailable. No current browser capture or end-to-end onboarding-time claim is made.
+
+## Demo checkout
+
+Development checkout offers server-priced 500, 1,000, and 2,500 credit packs. A successful simulated payment calls the SDK credit-grant endpoint with a stable external reference and a fixed 100-credit-per-USD rate. The grant is real; the payment is simulated. Production mode disables checkout.
+
+Mocked tests cover confirmation, duplicate and concurrent submissions, retrying an uncertain grant with the same reference, declined payments, customer isolation, server prices, origin checks, and the public SDK payload. UI tests cover confirmation, receipts, and retrying the same order. No live credit grant or payment was made during this work, and no account was selected for testing. The existing service key's write permission has not been changed or verified live.

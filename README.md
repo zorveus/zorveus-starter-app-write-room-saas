@@ -56,7 +56,7 @@ Inspect the saved plan. Confirm the selected organization and these proposed res
 - A $10 USD monthly AI allowance per Plus customer, equivalent to 1,000 configured credits.
 - A second direct inference key, Plus Ultra at `plus_ultra`, with a $30 USD monthly allowance per customer, or 3,000 configured credits.
 - `creditMode: "enforce"` and `overrunPolicy: "limit_output"`.
-- One customer-read service key at `customers`, with only `product_users:read`.
+- One customer service key at `customers`, with `product_users:read` and `product_users:write` for demo credit purchases.
 
 Apply only after reviewing that plan:
 
@@ -86,7 +86,7 @@ For a new copy, create `.env` from the example without overwriting an existing f
 cp -n .env.example .env
 ```
 
-Fill in your applied app ID, customer-read service key, and both direct inference keys:
+Fill in your applied app ID, customer service key, and both direct inference keys:
 
 - `ZORVEUS_APP_ID`
 - `ZORVEUS_SERVICE_KEY`
@@ -143,3 +143,13 @@ Demo sign-in is disabled in this production mode. Production authentication is i
 The editor supports Command/Ctrl + Enter to rewrite, focus mode with Escape to return, draft clear/restore, copy confirmation, and an explicit **Use as draft** action. Samples only fill the editor and never generate automatically. Fonts are served locally.
 
 After the completed flow, use the [base snapshot and integration tutorial](docs/tutorial.md) to study how billing was added. Review [verification results and outstanding live checks](docs/verification.md) before treating this as a live-validated quickstart.
+
+## Try demo credit checkout
+
+Select **Add credits** below the balance. Choose 500 credits for $5, 1,000 for $10, or 2,500 for $25. Continue, then choose **Simulate payment** or **Simulate decline**. No card details or real money are collected. A successful simulated payment issues a real customer credit grant in Zorveus and refreshes the balance and Activity. No generation is required.
+
+The server service key needs `product_users:write` in addition to `product_users:read`. For an existing setup, update the existing service key's scopes in Zorveus, or put a replacement key with both scopes in `.env` and restart. Editing the plain manifest alone does not update an existing key. Do not apply an unapplied manifest to your existing setup just to change a scope; it may create another app.
+
+Checkout is available only in development. Packs are priced on the server at 100 credits per USD. The server binds orders to the signed-in customer and uses a stable external reference to deduplicate grant retries. A failed confirmation can be retried using **Retry same checkout**. If the result is uncertain, keep that checkout open and retry it rather than buying another pack.
+
+This is a simulated gateway with in-memory orders retained for up to 24 hours. Restarting loses pending order state. For real payments, persist orders and verify a gateway webhook before granting credits; never accept a browser's payment-success claim. Purchased credits do not fund the Zorveus organization wallet.

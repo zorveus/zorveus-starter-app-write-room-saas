@@ -3,6 +3,7 @@ import type { ServerConfig } from "./config.js";
 import type { ActivityPage, Allowance, Rewrite, Plan } from "../src/types.js";
 
 export interface Billing {
+  grantCredits(externalUserId: string, amountUsd: string, orderId: string): Promise<void>;
   allowance(externalUserId: string, plan: Plan): Promise<Allowance>;
   activity(externalUserId: string, cursor?: string): Promise<ActivityPage>;
   rewrite(
@@ -51,6 +52,20 @@ export function createBilling(
     externalUserId,
   });
   return {
+
+    // Grant credits to a user after a purchase. E.g a Stripe webhook can call this endpoint to grant credits after a successful payment.
+    async grantCredits(externalUserId, amountUsd, orderId) {
+      await service.productUsers.grantCreditByExternalId({
+        ...identity(externalUserId),
+        externalReference: `write-room:${orderId}`,
+        amount: amountUsd,
+        currency: 'USD',
+        creditUnitsPerUsd: '100',
+        source: 'purchase',
+        reason: 'Demo credit purchase',
+        metadata: { demo_payment: true, order_id: orderId },
+      }, { maxRetries: 0 });
+    },
     // Get user allowance
     async allowance(externalUserId, plan) {
       // Deliberate first-read creation. A preflight must use upsertIfMissing: false.
@@ -91,11 +106,9 @@ export function createBilling(
           model: item.type === "usage" ? item.model : null,
           chargedUnits:
             item.type === "usage" ? (item.charged_credit_units ?? null) : null,
-          activityId:
-            item.type === "usage" &&
-            typeof item.usage_metadata?.activity_id === "string"
-              ? item.usage_metadata.activity_id
-              : null,
+          activityId: item.type === "usage"
+            ? (typeof item.usage_metadata?.activity_id === "string" ? item.usage_metadata.activity_id : null)
+            : (typeof item.metadata?.order_id === "string" ? item.metadata.order_id : null),
         })),
         nextCursor: page.next_cursor,
         hasMore: page.has_more,

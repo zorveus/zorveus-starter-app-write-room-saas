@@ -4,6 +4,7 @@ import { quantity, date } from './format';
 import { planNames } from './types';
 import { Icon } from './Icon';
 import { Disclosure } from './Disclosure';
+import { CreditCheckout } from './CreditCheckout';
 import { revealEdit } from './motion';
 import type { ActivityItem, ActivityPage, Allowance, Config, Customer, Rewrite } from './types';
 
@@ -57,7 +58,7 @@ export function App() {
           <option value="" disabled>Choose an account</option><option value="a">Alex Morgan</option><option value="b">Sam Rivera</option><option value="c">Jordan Lee</option>
         </select><Icon name="chevron" size={13} /></div><Disclosure label="Demo details" className="demo-details"><p>Each account has its own allowance and Activity. Switching accounts clears the editor.</p></Disclosure></> : <p>{config ? 'Demo sign-in is disabled. Connect production authentication to use this app.' : 'Loading accounts…'}</p>}
       </div>
-      {config?.customer && <Plan key={config.customer.account} ready={config.ready} customer={config.customer} />}
+      {config?.customer && <Plan key={config.customer.account} ready={config.ready} customer={config.customer} checkoutEnabled={config.demoSignIn} />}
       <div className="sidebar-footer"><a href="https://docs.zorveus.com/startups/product-user-activity" target="_blank" rel="noreferrer">Powered by <strong>Zorveus</strong></a></div>
     </aside>
     <main id="main-content">
@@ -74,7 +75,9 @@ export function App() {
 
 // Account changes remount both this listener and the editor, keeping usage state isolated.
 const refreshedEvent = 'write-room-allowance-refresh';
-function Plan({ ready, customer }: { ready: boolean; customer: Customer }) {
+const creditsAddedEvent = 'write-room-credits-added';
+function Plan({ ready, customer, checkoutEnabled }: { ready: boolean; customer: Customer; checkoutEnabled: boolean }) {
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [allowance, setAllowance] = useState<Load<Allowance>>({ state: 'empty' });
   useEffect(() => {
     const listener = (event: Event) => setAllowance((event as CustomEvent<Load<Allowance>>).detail);
@@ -87,10 +90,12 @@ function Plan({ ready, customer }: { ready: boolean; customer: Customer }) {
     <div className="balance-heading"><span>Credits left</span>{allowance.state === 'loading' && <Icon name="refresh" size={12} className="spinning" />}</div>
     <div className={`credit-number ${data?.remaining == null ? 'balance-unavailable' : ''}`} title={data?.remaining ?? undefined}><span className="balance-value" key={data?.remaining ?? allowance.state}>{data ? quantity(data.remaining, 2) : allowance.state === 'loading' ? 'Loading…' : 'Unavailable'}</span></div>
     {allowance.state === 'failed' && <span className="credit-caption">Refresh failed. Last known balance.</span>}
+    {checkoutEnabled && <button className="add-credits" disabled={!ready} onClick={() => setCheckoutOpen(true)}>Add credits<Icon name="arrow" size={15} /></button>}
+    {checkoutOpen && <CreditCheckout name={customer.name} onClose={() => setCheckoutOpen(false)} onFulfilled={() => window.dispatchEvent(new CustomEvent(creditsAddedEvent, { detail: customer.account }))} />}
     <Disclosure label="Allowance details" className="policy-details">
       {data && <dl><div><dt>AI allowance</dt><dd>{quantity(data.capAmount)} {data.currency ?? ''}</dd></div><div><dt>Period</dt><dd>{data.period ?? 'Unavailable'}</dd></div><div><dt>Period ends</dt><dd>{date(data.periodEnd)}</dd></div><div><dt>Enforcement</dt><dd>{data.creditMode ?? 'Unavailable'}</dd></div><div><dt>Overrun policy</dt><dd>{data.overrunPolicy ?? 'Unavailable'}</dd></div></dl>}
       <p>{ready ? 'The live balance includes your selected base allowance and applicable credit grants.' : 'Connect Zorveus to see your live allowance.'}</p>
-      <p>Your organization funds AI usage. This starter does not collect subscription payments.</p>
+      <p>Your organization funds AI usage. Demo checkout does not collect real payments.</p>
     </Disclosure>
     
   </section>;
@@ -114,6 +119,7 @@ function Workspace({ customer, ready }: { customer: Customer; ready: boolean }) 
   const allowance = useRef<Load<Allowance>>({ state: 'empty' });
   const alive = useRef(true);
   const refreshLock = useRef(false);
+  const refreshQueued = useRef(false);
   const generationLock = useRef(false);
   const draftRef = useRef<HTMLTextAreaElement>(null);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -129,7 +135,8 @@ function Workspace({ customer, ready }: { customer: Customer; ready: boolean }) 
     window.dispatchEvent(new CustomEvent(refreshedEvent, { detail: value }));
   }
   async function refresh() {
-    if (!ready || refreshLock.current) return;
+    if (!ready) return;
+    if (refreshLock.current) { refreshQueued.current = true; return; }
     refreshLock.current = true; setRefreshing(true);
     publish({ ...allowance.current, state: 'loading' });
     setActivity(value => ({ ...value, state: 'loading', error: undefined }));
@@ -143,9 +150,20 @@ function Workspace({ customer, ready }: { customer: Customer; ready: boolean }) 
       const data = await request<ActivityPage>('activity');
       if (alive.current) setActivity({ state: 'ready', data });
     } catch (e) { if (alive.current) setActivity(value => ({ ...value, state: 'failed', error: errorText(e) })); }
-    finally { refreshLock.current = false; if (alive.current) setRefreshing(false); }
+    finally {
+      refreshLock.current = false;
+      if (alive.current) {
+        setRefreshing(false);
+        if (refreshQueued.current) { refreshQueued.current = false; void refresh(); }
+      }
+    }
   }
   useEffect(() => { void refresh(); }, [ready]);
+  useEffect(() => {
+    const listener = (event: Event) => { if ((event as CustomEvent).detail === customer.account) void refresh(); };
+    window.addEventListener(creditsAddedEvent, listener);
+    return () => window.removeEventListener(creditsAddedEvent, listener);
+  }, [customer.account, ready]);
   useEffect(() => {
     if (latestId && activity.data?.items.some(item => item.activityId === latestId)) setConfirmation('recorded');
   }, [activity.data, latestId]);
@@ -232,5 +250,5 @@ function Workspace({ customer, ready }: { customer: Customer; ready: boolean }) 
   </div>;
 }
 function ActivityRow({ item }: { item: ActivityItem }) {
-  return <tr><td><span className="activity-row-icon"><Icon name={item.type === 'usage' ? 'pen' : 'activity'} size={16} /></span><div className="activity-item-description"><strong>{item.label}</strong><small>{date(item.createdAt)}{item.model ? ` · ${item.model}` : ''}</small>{item.activityId && <details><summary>Reference</summary><code>{item.activityId}</code></details>}</div></td><td className="numeric" title={item.chargedUnits ?? undefined}>{quantity(item.chargedUnits)}</td><td className="numeric" title={item.amount}>{quantity(item.amount)} <span className="currency">{item.currency}</span></td><td><span className={`status ${['completed', 'settled'].includes(item.status) ? 'is-complete' : ''}`}><i />{item.status}</span></td></tr>;
+  return <tr><td><span className="activity-row-icon"><Icon name={item.type === 'usage' ? 'pen' : 'activity'} size={16} /></span><div className="activity-item-description"><strong>{item.label}</strong><small>{date(item.createdAt)}{item.model ? ` · ${item.model}` : ''}</small>{item.activityId && <details><summary>Reference</summary><code>{item.activityId}</code></details>}</div></td><td className="numeric" title={item.chargedUnits ?? undefined}>{item.type === 'usage' ? quantity(item.chargedUnits) : 'Not charged'}</td><td className="numeric" title={item.amount}>{quantity(item.amount)} <span className="currency">{item.currency}</span></td><td><span className={`status ${['completed', 'settled'].includes(item.status) ? 'is-complete' : ''}`}><i />{item.status}</span></td></tr>;
 }

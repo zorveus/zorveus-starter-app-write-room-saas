@@ -1,6 +1,8 @@
 {
   "app": {
-    "allowedModels": ["*"],
+    "allowedModels": [
+      "*"
+    ],
     "creditUnitsPerUsd": "100",
     "name": "Write room"
   },
@@ -29,7 +31,10 @@
   "serviceKeys": {
     "customers": {
       "name": "Write room customer reads",
-      "scopes": ["product_users:read"]
+      "scopes": [
+        "product_users:read",
+        "product_users:write"
+      ]
     }
   },
   "version": 1
