@@ -1,0 +1,36 @@
+{
+  "app": {
+    "allowedModels": ["*"],
+    "creditUnitsPerUsd": "100",
+    "name": "Write room"
+  },
+  "keys": {
+    "plus": {
+      "cap": {
+        "amount": "10",
+        "currency": "USD",
+        "period": "monthly"
+      },
+      "creditMode": "enforce",
+      "name": "Plus",
+      "overrunPolicy": "limit_output"
+    },
+    "plus_ultra": {
+      "cap": {
+        "amount": "30",
+        "currency": "USD",
+        "period": "monthly"
+      },
+      "creditMode": "enforce",
+      "name": "Plus Ultra",
+      "overrunPolicy": "limit_output"
+    }
+  },
+  "serviceKeys": {
+    "customers": {
+      "name": "Write room customer reads",
+      "scopes": ["product_users:read"]
+    }
+  },
+  "version": 1
+}
