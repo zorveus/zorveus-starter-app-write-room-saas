@@ -1,155 +1,126 @@
 # Write room
 
-A standalone React and TypeScript writing app with trusted server handlers. Rewrite a draft, read your plan allowance, and inspect customer Activity through Zorveus. Alex uses Plus and Sam uses Plus Ultra. Each plan has its own server-only direct inference key. Customer identities, allowances, and history stay separate.
+A React and TypeScript starter app for AI writing with Zorveus. Rewrite drafts, enforce customer allowances, inspect Activity, and add credits through a simulated checkout.
 
-The completed app includes `zorveus.json`. Do not run `init` or a setup wizard to replace it.
+The demo includes three accounts: Alex Morgan and Jordan Lee on Plus, and Sam Rivera on Plus Ultra. Each customer has an independent allowance and Activity history. The server selects the direct inference key for their plan.
 
-## Get the completed app
+## Install
 
-This starter has not been published as a separate repository or download. For the supplied SDK checkout, copy the finished directory outside the monorepo:
+Use Node.js 22.12 or later and npm. From the project directory, install dependencies:
 
 ```sh
-cp -R /Users/peterakande/DevProjects/SDKs/zorveus-ts/examples/saas-starter /tmp/write-room
-cd /tmp/write-room
 npm ci
 ```
 
-Alternatively, extract the delivered `saas-starter.tar.gz` into an empty directory:
+Install the Zorveus CLI using its [installation instructions](https://github.com/zorveus/zorveus-cli#installation).
 
-```sh
-tar -xzf saas-starter.tar.gz
-cd saas-starter
-npm ci
-```
+## Provision Zorveus
 
-Use Node.js 22.12 or later, npm, and the Zorveus CLI. All dependencies resolve from npm. There are no workspace dependencies or sibling source imports. The app's server binds to loopback at `http://127.0.0.1:3000`.
+You need a Zorveus organization with access to the selected model and enough funding for inference.
 
-## Prepare your account
-
-You need a Zorveus account, an organization where you can create apps and keys, access to a working text-model route, and enough organization funding to pay for inference. An AI allowance limits customer usage. It does not fund the organization or collect subscription payments.
-
-The bundled model is `gemini/gemini-3.5-flash-lite`. Both demo plan keys list this exact model ID. Paid generation checks previously used `openai/gpt-4o-mini`. See [Select a text model](docs/configuration.md#select-a-text-model) to choose another allowed model.
-
-Install the CLI using the [CLI installation instructions](https://github.com/zorveus/zorveus-cli#installation). Then sign in and verify the selected organization:
+Sign in, confirm your organization, and review the bundled manifest:
 
 ```sh
 zorveus login
 zorveus whoami
-```
-
-For a local Zorveus installation, use the CLI's documented `--local` endpoint configuration consistently. The app needs both matching endpoint variables. Never mix a local management endpoint with a production gateway.
-
-## Plan and apply the supplied manifest
-
-Run these commands from the starter root:
-
-```sh
 zorveus validate
 zorveus plan
 cat zorveus.plan.json
 ```
 
-Inspect the saved plan. Confirm the selected organization and these proposed resources:
+The manifest defines:
 
-- One Write room app with its configured allowed-model list, with `creditUnitsPerUsd: "100"`.
-- One direct inference key named Plus at the stable reference `plus`.
-- A $10 USD monthly AI allowance per Plus customer, equivalent to 1,000 configured credits.
-- A second direct inference key, Plus Ultra at `plus_ultra`, with a $30 USD monthly allowance per customer, or 3,000 configured credits.
-- `creditMode: "enforce"` and `overrunPolicy: "limit_output"`.
-- One customer service key at `customers`, with `product_users:read` and `product_users:write` for demo credit purchases.
+- A Write room app with 100 display credits per USD.
+- A Plus direct key with a $10 monthly allowance per customer, equivalent to 1,000 credits.
+- A Plus Ultra direct key with a $30 monthly allowance per customer, equivalent to 3,000 credits.
+- Enforced allowances with the `limit_output` overrun policy.
+- A customer service key with `product_users:read` and `product_users:write` for allowance, Activity, and credit grants.
 
-Apply only after reviewing that plan:
+After reviewing the plan, apply it:
 
 ```sh
 zorveus apply --plan zorveus.plan.json --yes
 ```
 
-These resources belong to your selected organization. They use your funding and credentials. Applying saves IDs into your local manifest and credentials through the CLI's credential store. Keep those IDs for subsequent plans. Do not redistribute an applied manifest, saved plans, apply journals, `.env`, or credential-store data.
+The CLI records resource IDs in your local manifest. Preserve those IDs when updating existing resources. Use an unapplied manifest when distributing a fresh starter. Keep saved plans, CLI state, and credentials out of version control.
 
-Alex is assigned to `plus` and Sam to `plus_ultra` in trusted server state. Both generation and allowance reads use the direct key for that customer’s plan. Browser inputs cannot choose a plan or key.
+## Configure and run
 
-Check that an unchanged configuration produces no changes:
-
-```sh
-zorveus plan
-```
-
-Expected remote result after a successful apply: `No changes.` This was verified against the installed CLI after the first live apply.
-
-## Launch the app
-
-The app reads server configuration from a local `.env` file or directly supplied process environment variables. It does not read the CLI credential store or run credential-retrieval commands.
-
-For a new copy, create `.env` from the example without overwriting an existing file:
+Create your local environment file:
 
 ```sh
-cp -n .env.example .env
+cp .env.example .env
 ```
 
-Fill in your applied app ID, customer service key, and both direct inference keys:
+Fill in these server-only variables with your own provisioned values:
 
-- `ZORVEUS_APP_ID`
-- `ZORVEUS_SERVICE_KEY`
-- `ZORVEUS_PLUS_INFERENCE_KEY`
-- `ZORVEUS_PLUS_ULTRA_INFERENCE_KEY`
+| Variable | Value |
+| --- | --- |
+| `ZORVEUS_APP_ID` | Applied app ID |
+| `ZORVEUS_SERVICE_KEY` | Service key with both product-user scopes |
+| `ZORVEUS_PLUS_INFERENCE_KEY` | Direct key from `keys.plus` |
+| `ZORVEUS_PLUS_ULTRA_INFERENCE_KEY` | Direct key from `keys.plus_ultra` |
+| `ZORVEUS_MODEL_ID` | Model ID, defaults to `gemini/gemini-3.5-flash-lite` |
 
-Keep the two plan keys distinct. Configure `ZORVEUS_API_BASE_URL` and `ZORVEUS_GATEWAY_URL` together for local or custom backends. The default text model is `gemini/gemini-3.5-flash-lite`; use `ZORVEUS_MODEL_ID` for another allowed model. See [the environment reference](docs/configuration.md).
+Keep the two inference keys distinct. The selected model must be allowed by your app and available to your organization. For a custom backend, set both `ZORVEUS_API_BASE_URL` and `ZORVEUS_GATEWAY_URL` to matching endpoints. The example uses the hosted Zorveus API.
 
-Start the server:
+Run the setup check and start the app:
 
 ```sh
 npm run preflight
-PORT=3005 npm run dev
+npm run dev
 ```
 
-Open `http://127.0.0.1:3005`. Omit `PORT=3005` to use port 3000. Your current local `.env` already contains the applied values. A fresh copy must supply its own credentials.
+Open `http://127.0.0.1:3000`. Set `PORT` to use another port.
 
-The server loads `.env` at startup and preserves values already supplied by your process environment. Restart after editing environment values or server code. Frontend changes reload through Vite. Never prefix secret variables with `VITE_`, commit `.env`, or expose it to browser code. Without configuration, the app shows setup instructions and keeps generation disabled.
+The preflight checks model listings and performs a lookup with customer creation disabled. It does not generate text or grant credits. A missing preflight customer alone does not establish whether app access works.
 
-## Try both customers
+The server reads `.env` at startup, preserving existing process environment values. Restart after changing server code or environment values. Frontend changes reload through Vite. The app does not access the CLI credential store. Keep `.env` private and never prefix credentials with `VITE_`.
 
-1. Continue as Alex Morgan, Customer A. Confirm **Current plan: Plus**.
-2. Read the live allowance. A setup default of 1,000 credits is not substituted for a missing response. A returned zero appears as zero.
-3. Choose a sample starter or enter your own draft. Select **Rewrite text** once.
-4. Read the generated text. The app refreshes allowance and Activity without clearing the output if either refresh fails.
-5. Inspect the recorded amount, currency, charged credit units, and status in Activity. Open **Reference** to see the business activity ID. The rewrite also exposes its completion ID for correlation.
-6. If a matching Activity entry has not appeared, wait for the two bounded follow-up reads or select **Refresh usage**. Pending confirmation does not prove a charge or a free request.
-7. Select Sam Rivera, Customer B. Confirm **Current plan: Plus Ultra**, then compare the independent allowance and Activity. The app clears the previous customer's editor and billing state.
+## Use the demo
 
-The first trusted allowance read deliberately passes `upsertIfMissing: true`. Zorveus can create a missing customer with `product_users:read` on this endpoint. Activity is lookup-only. Demo IDs are stable across sessions and restarts, so signing in again does not reset live credits. Every generation, allowance read, and Activity read uses the session's same external customer ID. Generation and allowance reads also use the same trusted plan key. Sam keeps the existing `write-room-demo-b` identity, so this change does not reset prior history or guarantee a fresh allowance.
+Select an account, enter a draft or choose **Try a sample**, then select **Rewrite text**. Command/Ctrl + Enter also starts a rewrite. The editor supports focus mode, copy, clear and restore, and **Use as draft**.
 
-If a rewrite returns HTTP 402 with `zorveus_reservation_insufficient_balance`, add funding to the selected Zorveus organization before trying again. Customer allowance credits limit usage; they do not supply organization funds.
+Selecting an account loads its allowance and Activity. The first allowance read can create the customer in Zorveus. Switching accounts clears the editor and customer-specific UI state. Customer identities remain stable across sessions, so signing in again does not reset credits or history.
 
-`limit_output` uses Zorveus's reservation and output-limit behavior. It is not a promise that every request consumes an exact amount. The app shows denial codes and does not retry generation automatically after an ambiguous result.
+Activity shows recorded usage, credit purchases, amounts, and statuses. Generation is not automatically retried. If a result is uncertain, inspect Activity before submitting another rewrite.
 
-## Check and distribute the starter
+### Add credits
+
+Select **Add credits**, choose a pack, then continue to the payment simulation:
+
+- 500 credits for $5
+- 1,000 credits for $10
+- 2,500 credits for $25
+
+**Simulate payment** grants real Zorveus customer credits without collecting money. **Simulate decline** adds no credits. A successful grant refreshes the balance and Activity. Customer credits do not fund the organization wallet; inference still requires organization funding.
+
+The service key needs `product_users:write` alongside `product_users:read`. For an existing setup, update that key's scopes in Zorveus or supply a replacement key in `.env`. Editing the manifest alone does not update remote permissions.
+
+If confirmation fails, use **Retry same checkout**. Each order has a stable reference to prevent duplicate grants. Orders are held in memory for up to 24 hours and are lost on server restart. Real payments require persisted orders and a verified gateway webhook before issuing credits.
+
+## Integration code
+
+All runtime Zorveus API calls are in [server/zorveus.ts](server/zorveus.ts): rewrites, allowance reads, Activity, and credit grants. [server/api.ts](server/api.ts) manages demo sessions and routes. [server/demo-checkout.ts](server/demo-checkout.ts) manages simulated orders. [scripts/preflight.ts](scripts/preflight.ts) makes separate read-only setup checks.
+
+The browser receives no credentials. Customer identity and plan selection come from trusted server state. The seeded sessions and checkout simulation are development features.
+
+## Check and package
 
 ```sh
 npm run check
 npm run package
 ```
 
-The archive is written to `artifacts/saas-starter.tar.gz`. Packaging refuses a manifest containing applied IDs or credential fields and includes only the app's source, documentation, tests, manifest, and lockfile. Do this before applying, or use a clean source copy for distribution.
+The archive is written to `artifacts/saas-starter.tar.gz`. Packaging includes source, tests, the README, the manifest, and dependency files. It excludes `.env`, CLI state, and local artifacts, and refuses manifests containing applied resource IDs or credentials.
 
-Build and serve the frontend with:
+Build and serve with:
 
 ```sh
 npm run build
 npm start
 ```
 
-Demo sign-in is disabled in this production mode. Production authentication is intentionally an integration point; see the [server integration explanation](docs/integration.md). The default server is a local example, not an internet-facing deployment configuration.
+Production mode disables demo sign-in and checkout. Add production authentication before deploying for real users. The example server binds to loopback.
 
-The editor supports Command/Ctrl + Enter to rewrite, focus mode with Escape to return, draft clear/restore, copy confirmation, and an explicit **Use as draft** action. Samples only fill the editor and never generate automatically. Fonts are served locally.
-
-After the completed flow, use the [base snapshot and integration tutorial](docs/tutorial.md) to study how billing was added. Review [verification results and outstanding live checks](docs/verification.md) before treating this as a live-validated quickstart.
-
-## Try demo credit checkout
-
-Select **Add credits** below the balance. Choose 500 credits for $5, 1,000 for $10, or 2,500 for $25. Continue, then choose **Simulate payment** or **Simulate decline**. No card details or real money are collected. A successful simulated payment issues a real customer credit grant in Zorveus and refreshes the balance and Activity. No generation is required.
-
-The server service key needs `product_users:write` in addition to `product_users:read`. For an existing setup, update the existing service key's scopes in Zorveus, or put a replacement key with both scopes in `.env` and restart. Editing the plain manifest alone does not update an existing key. Do not apply an unapplied manifest to your existing setup just to change a scope; it may create another app.
-
-Checkout is available only in development. Packs are priced on the server at 100 credits per USD. The server binds orders to the signed-in customer and uses a stable external reference to deduplicate grant retries. A failed confirmation can be retried using **Retry same checkout**. If the result is uncertain, keep that checkout open and retry it rather than buying another pack.
-
-This is a simulated gateway with in-memory orders retained for up to 24 hours. Restarting loses pending order state. For real payments, persist orders and verify a gateway webhook before granting credits; never accept a browser's payment-success claim. Purchased credits do not fund the Zorveus organization wallet.
+For the editor without billing, run `npm run dev:base`. See the [base snapshot](base/README.md).
